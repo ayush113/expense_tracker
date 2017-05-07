@@ -18,7 +18,7 @@ def start():
 
     cur.execute('INSERT INTO users (user_id,password,security_q,security_a) VALUES (?,?,?,?)',(user["id"],user["password"],user["q"],user["a"]))
 
-
+#just a test
 def cut():
     cur.execute('SELECT * FROM users')
 
