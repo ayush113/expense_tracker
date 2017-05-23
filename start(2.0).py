@@ -40,11 +40,18 @@ except:
                                               cat TEXT,
                                               loc TEXT,
                                               price REAL,
-                                              date DATE,
+                                              day INT,
+                                              month INT,
+                                              year INT,
                                               PRIMARY KEY(purchaseID),
                                               FOREIGN KEY(userID) REFERENCES users(userID)
                                               ON UPDATE RESTRICT ON DELETE CASCADE)""")
+        cur.execute("""CREATE TABLE years(month INTEGER,
+                                          desc TEXT,
+                                          PRIMARY KEY(month))""")
         db.commit()
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
                                         
 class User(object):     #class for single user
     def __init__(self, userID, userName, pwd, question, ans, budget):
@@ -76,14 +83,16 @@ class User(object):     #class for single user
     def add_expense(self,values):   #adds expense with values (a list) and stores them in database
         with sqlite3.connect(db_name) as db:
             cur=db.cursor()
-            cur.execute("INSERT INTO purchases(userID, desc, cat, loc, date, price) VALUES (?,?,?,?,?,?)",(self.userID, values[0], values[1], values[2], values[4], values[3]))
+            cur.execute("INSERT INTO purchases(userID, desc, cat, loc, day, month, year, price) VALUES (?,?,?,?,?,?)",
+            (self.userID, values[0], values[1], values[2], values[4], values[5], values[6], values[3]))
             db.commit()
         print "\n\t\t\tEXPENSE ADDED!"
 
     def edit_expense(self,purchaseID,values):   #edits expense details and updates them in database
         with sqlite3.connect(db_name) as db:
             cur=db.cursor()
-            cur.execute("UPDATE purchases SET userID=?, desc=?, cat=?, loc=?, date=?, price=? WHERE purchaseID=?",(self.userID, values[0], values[1], values[2], values[4], values[3], purchaseID))
+            cur.execute("UPDATE purchases SET userID=?, desc=?, cat=?, loc=?, day=?, month=?, year=?, price=? WHERE purchaseID=?",(
+            self.userID, values[0], values[1], values[2], values[4], values[5], values[6], values[3], purchaseID))
             db.commit()
         print "\n\t\t\tEXPENSE EDITED!"
 
@@ -93,6 +102,8 @@ class User(object):     #class for single user
             cur.execute("DELETE FROM purchases WHERE purchaseID=?",(purchaseID,))
             db.commit()
         print "\n\t\t\tEXPENSE DELETED!"
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 
 client=User(0,'','','','',0.0) #global object of User class (will be used for login processes)
 
@@ -118,6 +129,8 @@ def begin():    #start menu
     except ValueError: #checks to see if 'choice' is a string
         print "\n\t\t\tERROR: INPUT NOT VALID!"
         begin()
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X    
 
 def signup():   #menu for a customer to sign up for an account
     print "\n\t\tSIGN UP FOR AN ACCOUNT IN EXPENSE TRACKER 9000 XL!"
@@ -169,6 +182,8 @@ def signup():   #menu for a customer to sign up for an account
 
     print "\n\t\tTHANK YOU FOR CREATING AN ACCOUNT WITH US!\n\t    STAY UP-TO-DATE WITH YOUR FINANCES WITH EXPENSE TRACKER 9000 XL"
     begin()
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 
 def login():    #login menu to ensure smooth login and to help user retrieve forgotten password
     print "\n\t\tLOGIN TO YOUR ACCOUNT!\n\t   (Forgot password? Enter 0 for all prompts)"
@@ -239,12 +254,13 @@ def login():    #login menu to ensure smooth login and to help user retrieve for
             client.ans=res[0][4]
             client.budget=res[0][5]
             enter()
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 			
 def create_expense(): #function that 'creates' the right expense details before sending them to User method 'add_expense'
 
     locs=[]
     cats=[]
-    descs=[]
     
     with sqlite3.connect(db_name) as db:
         
@@ -259,17 +275,18 @@ def create_expense(): #function that 'creates' the right expense details before 
         for (loc,) in res:
             locs.append(loc)
             
-        cur.execute("SELECT DISTINCT desc FROM purchases WHERE userID=?", (client.userID,))
-        res=cur.fetchall()
-        for (desc,) in res:
-            descs.append(desc)
-        db.commit()
-            
-    lists=[descs,cats,locs]
+    lists=[cats,locs]
     values=[]
-    lists2=["description","category","location"]
+    lists2=["category","location"]
+
+    inp=raw_input("\n\t\tEnter a description of your purchase - ")
+    if inp=='':
+        print "\n\t\t\tRETURNING TO USER MENU..."
+        enter()
+    else:
+        values.append(inp)
     
-    for i in range(3):  #loop that iteratively stores data about location, category and description w/o rewriting code
+    for i in range(2):  #loop that iteratively stores data about location, category and description w/o rewriting code
         if len(lists[i])!=0:
             print "\n\t\t\t  %s:" % lists2[i].upper()
             for j in range(len(lists[i])):
@@ -304,7 +321,9 @@ def create_expense(): #function that 'creates' the right expense details before 
     dateInp=raw_input("\n\tEnter the date of purchase (Hit 1 for today's date to be entered) (DD/MM/YYYY) - ")
     if dateInp=='1':
         timeNow=time.localtime()    #gives the time right now in the form of tuple
-        values.append(str(timeNow[2])+str(timeNow[1])+str(timeNow[0]))
+        values.append(timeNow[2])
+        values.append(timeNow[1])
+        values.append(timeNow[0])
     elif dateInp=='':
         print "\n\t\t\tRETURNING TO USER MENU..."
         enter()
@@ -318,9 +337,13 @@ def create_expense(): #function that 'creates' the right expense details before 
             print "\n\t\tINVALID DATE!"
             enter()
         else:
-            values.append(str(year)+"-"+str(month)+"-"+str(day))
+            values.append(day)
+            values.append(month)
+            values.append(year)
 
     return values
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 
 def choose_expense():
 
@@ -350,6 +373,8 @@ def choose_expense():
     else:
         print "\n\tNO EXPENSES TO DISPLAY!"
         enter()
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 	
 def details():
 
@@ -358,20 +383,36 @@ def details():
 
     todate=time.asctime().split()
     today=time.localtime()
+    
     monthExpenses=0.0
     monthNo=0
     yearExpenses=0.0
+    
     with sqlite3.connect(db_name) as db:
+        
         cur=db.cursor()
-        cur.execute("SELECT SUM(price), COUNT(PurchaseID) FROM purchases WHERE userID={0} AND date LIKE '{1}-{2}-%'".format(client.userID, today[0], today[1]))
+        cur.execute("SELECT SUM(price) FROM purchases WHERE userID={0} AND year={1}".format(client.userID, today[0]))
         res=cur.fetchall()
-        monthExpenses=res[0][0]
-        monthNo=res[0][1]
-        cur.execute("SELECT SUM(price) FROM purchases WHERE userID={0} AND date LIKE '{1}-%'".format(client.userID, today[0]))
+        
+        if res[0][0]!=None:
+            yearExpenses=res[0][0]
+        else:
+            yearExpenses=0.0
+            
+        cur.execute("SELECT SUM(price), COUNT(PurchaseID) FROM purchases WHERE userID={0} AND year={1} AND month={2}".format(client.userID, today[0], today[1]))
         res=cur.fetchall()
-        yearExpenses=res[0][0]
+        
+        if res[0][1]!=0:
+            monthExpenses=res[0][0]
+            monthNo=res[0][1]   
+        else:
+            monthExpenses=0.0
+            monthNo=0
+            
         db.commit()
-    print "\n\t\t\t\t  %s %s %s %s\n\n\t\t\tEXPENSES THIS MONTH: %.2f\n\t\t\tPURCHASES THIS MONTH: %d\n\t\t\tEXPENSES THIS YEAR: %.2f\n\t\t\tMONTHLY BUDGET: %.2f" % (todate[0], todate[1], todate[2], todate[4], monthExpenses, monthNo, yearExpenses, client.budget)
+    print "\n\t\t\t\t  %s %s %s %s\n\n\t\t\tEXPENSES THIS MONTH: %.2f\n\t\t\tPURCHASES THIS MONTH: %d\n\t\t\tTOTAL EXPENSES THIS YEAR: %.2f\n\t\t\tMONTHLY BUDGET: %.2f" % (todate[0], todate[1], todate[2], todate[4], monthExpenses, monthNo, yearExpenses, client.budget)
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
     
 def enter(): #menu for the user to do the following stuff
     print "\n\t\t\t\tWELCOME %s!" % client.userName
@@ -409,7 +450,7 @@ def enter(): #menu for the user to do the following stuff
         questionInp=client.question
         ansInp=client.ans
 
-        print "\n\t\tIF YOU WANT A DETAIL TO REMAIN AS IS, HIT 0 FOR THAT DETAIL"
+        print "\n\t\tIF YOU WANT A DETAIL TO REMAIN AS IS, HIT 1 FOR THAT DETAIL"
         userName=pwd=question=ans=''
         budget=-1
         while (len(userName)<5 or len(pwd)<6 or len(question)==0 or len(ans)==0 or budget<=0):
@@ -439,15 +480,15 @@ def enter(): #menu for the user to do the following stuff
             except:
                 continue
             
-        if userName=='0':
+        if userName=='1':
             userName=userNameInp
-        if pwd=='0':
+        if pwd=='1':
             pwd=pwdInp
-        if question=='0':
+        if question=='1':
             question==questionInp
-        if ans=='0':
+        if ans=='1':
             ans=ansInp
-        if budget=='0':
+        if budget==1:
             budget=budgetInp
             
         client.userName=userName  #once the account details are edited, global 'client' details are updated 
@@ -490,9 +531,8 @@ def enter(): #menu for the user to do the following stuff
         enter()
 
 begin()
-            
-            
-
+                        
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
         
             
             
