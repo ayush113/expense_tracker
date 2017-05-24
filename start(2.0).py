@@ -352,14 +352,14 @@ def choose_expense():
     
     with sqlite3.connect(db_name) as db:
         cur=db.cursor()
-        cur.execute("SELECT purchaseID, desc, price, cat, loc, date from purchases WHERE userID=? ORDER BY date desc",(client.userID,))
+        cur.execute("SELECT purchaseID, desc, price, cat, loc, day||'-'||month||'-'||year from purchases WHERE userID=? ORDER BY year desc, month desc, day desc",(client.userID,))
         res=cur.fetchall()
         db.commit()
     if len(res)!=0:
         ids=[]
         for rec in res:
             ids.append(str(rec[0]))
-        print tabulate(res, ["PurchaseID","Description","Price","Category","Location","Date(YYYY-MM-DD)"], tablefmt='grid')
+        print tabulate(res, ["PurchaseID","Description","Price","Category","Location","Date(DD-MM-YYYY)"], tablefmt='grid')
         idInp=raw_input("\n\tEnter the ID of the expense - ")
         if idInp=='':
             print "\n\t\t\tRETURNING TO USER MENU..."
