@@ -1,3 +1,7 @@
+""" NOT THE FINAL VERSION
+2 KNOWN BUGS
+BUGS WILL BE SOLVED WHEN INTEGRATED IN THE PROGRAM
+TILL THEN ONLY TEST FUNCTIONS FOR EXISTING USERNAMES"""
 import sqlite3
 import matplotlib.pyplot as plt
 
@@ -5,7 +9,7 @@ def GetData_Cat(Uname):
     conn = sqlite3.connect("Accounts.db")
     cur = conn.cursor()
     cur.execute("SELECT userId from users WHERE Username = ? ",(Uname,))
-    res = cur.fetchone()
+    res = cur.fetchall()
     if(len(res) == 0):
         print ("Invalid Username entered\nTry again enter a valid username(press 1)\nQuit(press any key)")
         k =int(raw_input())
@@ -29,6 +33,3 @@ def DrawPie(dictG):
             shadow=True, startangle=0)
     ax1.axis('equal')
     plt.show()
-
-
-DrawPie(GetData_Cat("ayushkumar"))
