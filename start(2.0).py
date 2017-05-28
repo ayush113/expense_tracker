@@ -83,7 +83,7 @@ class User(object):     #class for single user
     def add_expense(self,values):   #adds expense with values (a list) and stores them in database
         with sqlite3.connect(db_name) as db:
             cur=db.cursor()
-            cur.execute("INSERT INTO purchases(userID, desc, cat, loc, day, month, year, price) VALUES (?,?,?,?,?,?)",
+            cur.execute("INSERT INTO purchases(userID, desc, cat, loc, day, month, year, price) VALUES (?,?,?,?,?,?,?,?)",
             (self.userID, values[0], values[1], values[2], values[4], values[5], values[6], values[3]))
             db.commit()
         print "\n\t\t\tEXPENSE ADDED!"
@@ -308,7 +308,7 @@ def create_expense(): #function that 'creates' the right expense details before 
     priceInp=raw_input("\n\t\tEnter the amount - ")
     try:
         price=float(priceInp)
-    except TypeError:
+    except:
         print "\n\t\t\tRETURNING TO USER MENU..."
         enter()
     else:
@@ -449,11 +449,12 @@ def enter(): #menu for the user to do the following stuff
         pwdInp=client.pwd
         questionInp=client.question
         ansInp=client.ans
+        budgetInp=client.budget
 
         print "\n\t\tIF YOU WANT A DETAIL TO REMAIN AS IS, HIT 1 FOR THAT DETAIL"
         userName=pwd=question=ans=''
         budget=-1
-        while (len(userName)<5 or len(pwd)<6 or len(question)==0 or len(ans)==0 or budget<=0):
+        while ((len(userName)<5 and userName!='1') or (len(pwd)<6 and pwd!='1') or (len(question)==0 and question!='1') or (len(ans)==0 and ans!='1') or budget<=0):
             print "\n\t\tUSERNAME MUST BE 5 CHARACTERS OR GREATER!\n\t\tPASSWORD MUST BE 6 CHARACTERS OR GREATER!"
             userName=raw_input("\n\t\tEnter your username - ")
             if (userName==''):
@@ -533,48 +534,6 @@ def enter(): #menu for the user to do the following stuff
 begin()
                         
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
-        
+   
             
-            
-            
-        
-    
-        
       
-        
-		
-		
-        
-        
-
-        
-                
-        
-                    
-        
-
-                
-    
-            
-        
-        
-    
-            
-            
-            
-            
-        
-            
-        
-    
-
-
-    
-    
-        
-        
-
-                
-            
-            
-        
