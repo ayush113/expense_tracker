@@ -99,7 +99,7 @@ def year_stats_all(year):
         plt.table(cellText=yList,rowLabels=cats, rowColours=colors, colLabels=months, loc='bottom')
         plt.subplots_adjust(left=0.2, bottom=0.2)
 
-        #ax2=fig.add_subplot(122)
+        #ax2=fig.add_subplot(122) IN CASE WE WANT TO PUT IT ALL IN ONE FUNCTION!
         #ax2.pie(catDict.values(), labels=catDict.keys(), shadow=True, startangle=90, labeldistance=-10)
         #ax2.axis('equal')
         #ax2.legend()
@@ -128,7 +128,7 @@ def year_stats_pies(year):
         while res!=None:
             catDict[res[0]]=res[1]
             res=cur.fetchone()
-        cur.execute("SELECT month, SUM(price) FROM purchases WHERE userID=? GROUP BY month",(client.userID,))
+        cur.execute("SELECT month, SUM(price) FROM purchases WHERE userID=? AND year=? GROUP BY month",(client.userID,year))
         res=cur.fetchone()
         while res!=None:
             monthList[res[0]-1]=res[1]
