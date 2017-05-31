@@ -81,9 +81,6 @@ def year_stats_all(year):
         #plt.style.use('ggplot')
         colors=plt.cm.rainbow(linspace(0,0.4,len_cats))
         fig,ax1=plt.subplots()
-        #fig=plt.figure()
-        
-        #ax1=fig.add_subplot(121)
         x_pos=arange(12)+0.5
         botList=[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
         for i in range(len_cats):
@@ -95,19 +92,8 @@ def year_stats_all(year):
         ax1.set_title(str(year))
         ax1.set_ylabel('Rupees')
 
-        #ax2=fig.add_subplot(312)
         plt.table(cellText=yList,rowLabels=cats, rowColours=colors, colLabels=months, loc='bottom')
         plt.subplots_adjust(left=0.2, bottom=0.2)
-
-        #ax2=fig.add_subplot(122) IN CASE WE WANT TO PUT IT ALL IN ONE FUNCTION!
-        #ax2.pie(catDict.values(), labels=catDict.keys(), shadow=True, startangle=90, labeldistance=-10)
-        #ax2.axis('equal')
-        #ax2.legend()
-
-        #ax3=fig.add_subplot(313)
-        #ax3.pie(monthList, labels=months, shadow=True, startangle=90, labeldistance=-10)
-        #ax3.axis('equal')
-        #ax3.legend()
         
         plt.savefig("%s_%d.pdf" % (client.userName, year))
         plt.show()
@@ -139,27 +125,13 @@ def year_stats_pies(year):
         ax1.pie(catDict.values(), labels=catDict.keys(), shadow=True, startangle=90, labeldistance=-10)
         ax1.axis('equal')
         ax1.legend()
-
+        ax1.set_title(str(year))
         ax2=fig.add_subplot(122)
         ax2.pie(monthList, labels=months, shadow=True, startangle=90, labeldistance=-10)
         ax2.axis('equal')
         ax2.legend()
+
         
         plt.savefig("%s_%d_Pies.pdf" % (client.userName, year))
         plt.show()
-        
-        
-
-    
-
-        
-                
-    
-            
-            
-            
-    
-        
-        
-        
-        
+       
