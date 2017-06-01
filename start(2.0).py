@@ -1,10 +1,12 @@
 import sqlite3 #module to interact with DBMS which manages the program's data
-import time #module which allows us to get real time
+from time import localtime,asctime #module which allows us to get real time
 from datetime import datetime #module which allows us to verify user input for dates
-import string
-from tabulate import tabulate
+import matplotlib.pyplot as plt #module which allows us to plot graphs and pie-charts
+from tabulate import tabulate #module which allows us to tabulate purchases by user
+from numpy import arange,linspace #module which helps matplotlib
 
 db_name="Accounts.db"
+months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 #ensures referential integrity (https://pythonschool.net/databases/referential-integrity/) 
 with sqlite3.connect(db_name) as db: 
@@ -106,6 +108,131 @@ class User(object):     #class for single user
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 
 client=User(0,'','','','',0.0) #global object of User class (will be used for login processes)
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
+
+def get_cats(): #returns list of categories of user
+    with sqlite3.connect("Accounts.db") as db:
+        cur=db.cursor()
+        cur.execute("SELECT DISTINCT cat FROM purchases WHERE userID=?",(client.userID,))
+        res=cur.fetchone()
+        cats=[]
+        while res!=None:
+            cats.append(res[0])
+            res=cur.fetchone()
+    return cats
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
+
+def month_stats(month, year): #returns a matplotlib object that contains a pie chart and bar graph of monthly expenses
+    
+    with sqlite3.connect("Accounts.db") as db:
+        cur=db.cursor()
+        
+        cats=get_cats()
+        
+        mDict={}
+        for cat in cats:
+            mDict[cat]=0.0
+            
+        cur.execute("SELECT cat, SUM(price) FROM purchases WHERE userID=? and month=? and year=? GROUP BY cat",(client.userID, month, year))
+        res=cur.fetchone()
+
+        while res!=None:
+            mDict[res[0]]=res[1]
+            res=cur.fetchone()
+            
+    
+    fig=plt.figure()
+    
+    ax1=fig.add_subplot(212)
+    ax1.pie(mDict.values(), labels=mDict.keys(), shadow=True, startangle=90, labeldistance=-10)
+    ax1.axis('equal')
+    ax1.legend()
+    
+    ax2=fig.add_subplot(211)
+    x_pos=arange(len(cats))
+    ax2.bar(left=x_pos, height=mDict.values(), width=0.6, align='center')
+    ax2.set_xticks(x_pos)
+    ax2.set_xticklabels(mDict.keys())
+    ax2.set_title("%s-%d" % (months[month-1],year))
+    ax2.set_ylabel('Rupees')
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
+
+def year_stats_all(year): #returns a matplotlib object that contains a stacked bar graph of yearly expenses by category for every month and includes a table
+    cats=get_cats()
+    len_cats=len(cats)
+    yList=[]
+    catDict={}
+    monthList=[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+    for cat in cats:
+        catDict[cat]=0.0
+    for i in range(len_cats):
+        yList.append([0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0])
+    with sqlite3.connect("Accounts.db") as db:
+        cur=db.cursor()
+        for i in range(len_cats):
+            cur.execute("SELECT month, SUM(price) FROM purchases WHERE userID=? AND year=? AND cat=? GROUP BY month", (client.userID, year, cats[i]))
+            res=cur.fetchone()
+            while res!=None:
+                yList[i][res[0]-1]=res[1]
+                res=cur.fetchone()
+    
+    #plt.style.use('ggplot')
+    colors=plt.cm.rainbow(linspace(0,0.4,len_cats))
+    fig,ax1=plt.subplots()
+    x_pos=arange(12)+0.5
+    botList=[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+    for i in range(len_cats):
+        ax1.bar(left=x_pos,height=yList[i],width=0.6,align='center',bottom=botList,color=colors[i])
+        for y in range(12):
+            botList[y]+=yList[i][y]
+    ax1.set_xticks(x_pos)
+    ax1.set_xticklabels([])
+    ax1.set_title(str(year))
+    ax1.set_ylabel('Rupees')
+
+    plt.table(cellText=yList,rowLabels=cats, rowColours=colors, colLabels=months, loc='bottom')
+    plt.subplots_adjust(left=0.2, bottom=0.2)
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
+
+def year_stats_pies(year): #returns a matplotlib object that contains yearly expenses by category and month in pie-charts
+    cats=get_cats()
+    len_cats=len(cats)
+    yList=[]
+    catDict={}
+    monthList=[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+    for cat in cats:
+        catDict[cat]=0.0
+
+    with sqlite3.connect("Accounts.db") as db:
+        cur=db.cursor()
+        cur.execute("SELECT month, SUM(price) FROM purchases WHERE userID=? AND year=? GROUP BY month",(client.userID,year))
+        res=cur.fetchone()
+        while res!=None:
+            monthList[res[0]-1]=res[1]
+            res=cur.fetchone()
+        cur.execute("SELECT cat,SUM(price) FROM purchases WHERE userID=? GROUP BY cat",(client.userID,))
+        res=cur.fetchone()
+        while res!=None:
+            catDict[res[0]]=res[1]
+            res=cur.fetchone()
+
+    fig=plt.figure()
+    ax1=fig.add_subplot(121)
+    ax1.pie(catDict.values(), labels=catDict.keys(), shadow=True, startangle=90, labeldistance=-10)
+    ax1.axis('equal')
+    ax1.legend()
+    ax1.set_title(str(year))
+    ax2=fig.add_subplot(122)
+    ax2.pie(monthList, labels=months, shadow=True, startangle=90, labeldistance=-10)
+    ax2.axis('equal')
+    ax2.legend()
+   
+
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X    
 
 def begin():    #start menu
     print "\n%sEXPENSE TRACKER XL 9000\n%s(Created by Ayush & Joshua)" % (' '*50,' '*49)
@@ -320,7 +447,7 @@ def create_expense(): #function that 'creates' the right expense details before 
 
     dateInp=raw_input("\n\tEnter the date of purchase (Hit 1 for today's date to be entered) (DD/MM/YYYY) - ")
     if dateInp=='1':
-        timeNow=time.localtime()    #gives the time right now in the form of tuple
+        timeNow=localtime()    #gives the time right now in the form of tuple
         values.append(timeNow[2])
         values.append(timeNow[1])
         values.append(timeNow[0])
@@ -381,8 +508,8 @@ def details():
     #displays the monthly expenses, no. of purchases made in the current month, 
     #and total expenses in the current year; also displays the monthly budget
 
-    todate=time.asctime().split()
-    today=time.localtime()
+    todate=asctime().split()
+    today=localtime()
     
     monthExpenses=0.0
     monthNo=0
@@ -442,6 +569,27 @@ def enter(): #menu for the user to do the following stuff
         purchaseID=choose_expense()
         client.delete_expense(purchaseID)
         enter()
+
+    elif choice=='4':
+        with sqlite3.connect(db_name) as db:
+            cur=db.cursor()
+            cur.execute("SELECT purchaseID, desc, price, cat, loc, day||'-'||month||'-'||year from purchases WHERE userID=? ORDER BY year desc, month desc, day desc",(client.userID,))
+            res=cur.fetchall()
+            db.commit()
+        if len(res)!=0:
+            print tabulate(res, ["PurchaseID","Description","Price","Category","Location","Date(DD-MM-YYYY)"], tablefmt='grid')
+            today=localtime()
+            month_stats(today[1],today[0])
+            plt.show(block=False)
+            year_stats_all(today[0])
+            plt.show(block=False)
+            year_stats_pies(today[0])
+            plt.show()
+            enter()
+        else:
+            print "\n\t\tNO EXPENSES TO DISPLAY!"
+            enter()
+        
         
     elif choice=='5':
         
@@ -486,7 +634,7 @@ def enter(): #menu for the user to do the following stuff
         if pwd=='1':
             pwd=pwdInp
         if question=='1':
-            question==questionInp
+            question=questionInp
         if ans=='1':
             ans=ansInp
         if budget==1:
@@ -534,6 +682,48 @@ def enter(): #menu for the user to do the following stuff
 begin()
                         
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
-   
+        
             
+            
+            
+        
+    
+        
       
+        
+		
+		
+        
+        
+
+        
+                
+        
+                    
+        
+
+                
+    
+            
+        
+        
+    
+            
+            
+            
+            
+        
+            
+        
+    
+
+
+    
+    
+        
+        
+
+                
+            
+            
+        
