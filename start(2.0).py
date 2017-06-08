@@ -4,9 +4,19 @@ from datetime import datetime #module which allows us to verify user input for d
 import matplotlib.pyplot as plt #module which allows us to plot graphs and pie-charts
 from tabulate import tabulate #module which allows us to tabulate purchases by user
 from numpy import arange,linspace #module which helps matplotlib
+import smtplib #module which sends reports and verification code to email address
+from random import randint #used for verification of email address
+from os import remove #used to delete files generate for reports
+from os.path import basename #function that returns base path of file
+from email import Encoders #module used to encode attachment
+from email.mime.base import MIMEBase #MIMEBase object that allows us to send files of virtually any extension
+from email.mime.multipart import MIMEMultipart #module which allows us to send attachments 
+from email.mime.text import MIMEText #MIMEBase child class which caters specifically to text files
 
 db_name="Accounts.db"
 months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+sendEmail="expense.trackerxl@gmail.com"
+sendPwd="extrack9000"
 
 #ensures referential integrity (https://pythonschool.net/databases/referential-integrity/) 
 with sqlite3.connect(db_name) as db: 
@@ -34,6 +44,7 @@ except:
                                           question TEXT,
                                           ans TEXT,
                                           budget REAL,
+                                          email TEXT,
                                           PRIMARY KEY(userID))""")        
      
         cur.execute("""CREATE TABLE purchases(purchaseID INTEGER,
@@ -56,24 +67,25 @@ except:
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
                                         
 class User(object):     #class for single user
-    def __init__(self, userID, userName, pwd, question, ans, budget):
+    def __init__(self, userID, userName, pwd, question, ans, budget, email):
         self.userID=userID
         self.userName=userName
         self.pwd=pwd
         self.question=question
         self.ans=ans
         self.budget=budget
+        self.email=email
 
     def create(self): #stores user's details into database
         with sqlite3.connect(db_name) as db:
             cur=db.cursor()
-            cur.execute("INSERT INTO users(userName,pwd,question,ans,budget) VALUES (?,?,?,?,?)",(self.userName,self.pwd,self.question,self.ans,self.budget))
+            cur.execute("INSERT INTO users(userName,pwd,question,ans,budget,email) VALUES (?,?,?,?,?,?)",(self.userName,self.pwd,self.question,self.ans,self.budget,self.email))
             db.commit()
 
     def edit(self):  #edits user's details and updates them in database
         with sqlite3.connect(db_name) as db:
             cur=db.cursor()
-            cur.execute("UPDATE users SET userName=?, pwd=?, question=?, ans=?, budget=? WHERE userID=?",(self.userName, self.pwd, self.question, self.ans, self.budget, self.userID))
+            cur.execute("UPDATE users SET userName=?, pwd=?, question=?, ans=?, budget=?, email=? WHERE userID=?",(self.userName, self.pwd, self.question, self.ans, self.budget, self.email, self.userID))
             db.commit()
             
     def delete(self):  #deletes user account from database
@@ -107,7 +119,7 @@ class User(object):     #class for single user
 
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 
-client=User(0,'','','','',0.0) #global object of User class (will be used for login processes)
+client=User(0,'','','','',0.0,'') #global object of User class (will be used for login processes)
 
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 
@@ -124,7 +136,7 @@ def get_cats(): #returns list of categories of user
 
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 
-def month_stats(month, year): #returns a matplotlib object that contains a pie chart and bar graph of monthly expenses
+def month_stats(month, year): #matplotlib object that contains a pie chart and bar graph of monthly expenses
     
     with sqlite3.connect("Accounts.db") as db:
         cur=db.cursor()
@@ -160,7 +172,7 @@ def month_stats(month, year): #returns a matplotlib object that contains a pie c
 
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 
-def year_stats_all(year): #returns a matplotlib object that contains a stacked bar graph of yearly expenses by category for every month and includes a table
+def year_stats_all(year): #matplotlib object that contains a stacked bar graph of yearly expenses by category for every month and includes a table
     cats=get_cats()
     len_cats=len(cats)
     yList=[]
@@ -198,7 +210,7 @@ def year_stats_all(year): #returns a matplotlib object that contains a stacked b
 
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 
-def year_stats_pies(year): #returns a matplotlib object that contains yearly expenses by category and month in pie-charts
+def year_stats_pies(year): #matplotlib object that contains yearly expenses by category and month in pie-charts
     cats=get_cats()
     len_cats=len(cats)
     yList=[]
@@ -232,8 +244,30 @@ def year_stats_pies(year): #returns a matplotlib object that contains yearly exp
     ax2.legend()
    
 
-#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X    
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
 
+def validate_email(userName,email):  #validates the email address by sending a verification code
+
+    randNo=randint(10000,99999)
+    print "\n\tSENDING VERIFICATION EMAIL. ENSURE INTERNET CONNECTION AND CHECK YOUR MAIL!"
+    message = "From: Expense Tracker 9000XL <expense.trackerxl@gmail.com>\nTo: %s <%s>\nMIME-Version: 1.0\nContent-type: text/html\nSubject: Email Verification\n<p>Dear %s,</p><p>\nBelow is the verification code for completion of registration on Expense Tracker 9000XL.</p><p>\nEnter the code in the program to complete registration.\n</p><h1><b>%d</b></h1>" % (userName, email, userName, randNo)
+    try:
+        smtpObj=smtplib.SMTP("smtp.gmail.com",587)
+        smtpObj.ehlo()
+        smtpObj.starttls()
+        smtpObj.ehlo()
+        smtpObj.login(sendEmail,sendPwd)
+        smtpObj.sendmail(sendEmail,email,message)
+    except smtplib.SMTPException:
+        return False
+
+    code=raw_input("\n\tEnter the verification code - ")
+    if code==str(randNo):
+        print "\n\tVERIFICATION COMPLETED SUCCESSFULLY!"
+        return True
+    else:
+        return False
+        
 def begin():    #start menu
     print "\n%sEXPENSE TRACKER XL 9000\n%s(Created by Ayush & Joshua)" % (' '*50,' '*49)
     print "\n\t\tTo return to the previous menu, hit <Enter> for all prompts" 
@@ -269,24 +303,24 @@ def signup():   #menu for a customer to sign up for an account
         userName=raw_input("\n\t\tEnter your username - ")
         if (userName==''):
             print "\n\t\tRETURNING TO USER MENU..."
-            enter()
+            begin()
         pwd=raw_input("\n\t\tEnter your password - ")
         if (pwd==''):
             print "\n\t\tRETURNING TO USER MENU..."
-            enter()
+            begin()
         question=raw_input("\n\t\tEnter a security question to retrieve password - ")
         if (question==''):
             print "\n\t\tRETURNING TO USER MENU..."
-            enter()
+            begin()
         ans=raw_input("\n\t\tEnter your answer to the security question - ")
         if (ans==''):
             print "\n\t\tRETURNING TO USER MENU..."
-            enter()
+            begin()
         try:
             budget=raw_input("\n\t\tEnter your monthly budget - ") #ensures that budget is a float value
             if (budget==''):
                 print "\n\t\tRETURNING TO USER MENU..."
-                enter()
+                begin()
             budget=float(budget)
         except:
             continue
@@ -300,11 +334,20 @@ def signup():   #menu for a customer to sign up for an account
         print "\n\t\tUSERNAME ALREADY EXISTS! PLEASE RE-ENTER DETAILS!"
         signup()
 
+    email=raw_input("\n\tEnter a valid email address for your account - ")
+    if email=='':
+        print "\n\t\tRETURNING TO USER MENU..."
+        begin()
+    if not validate_email(userName,email):
+        print "\n\t\tCOULD NOT VALIDATE EMAIL ADDRESS! PLEASE RE-ENTER DETAILS!"
+        signup() 
+
     client.userName=userName    #updates global client details with that of user who just logged in
     client.pwd=pwd
     client.question=question
     client.ans=ans
     client.budget=budget
+    client.email=email
     client.create()
 
     print "\n\t\tTHANK YOU FOR CREATING AN ACCOUNT WITH US!\n\t    STAY UP-TO-DATE WITH YOUR FINANCES WITH EXPENSE TRACKER 9000 XL"
@@ -380,6 +423,7 @@ def login():    #login menu to ensure smooth login and to help user retrieve for
             client.question=res[0][3]
             client.ans=res[0][4]
             client.budget=res[0][5]
+            client.email=res[0][6]
             enter()
 
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
@@ -387,16 +431,11 @@ def login():    #login menu to ensure smooth login and to help user retrieve for
 def create_expense(): #function that 'creates' the right expense details before sending them to User method 'add_expense'
 
     locs=[]
-    cats=[]
+    cats=get_cats()
     
     with sqlite3.connect(db_name) as db:
         
-        cur=db.cursor()
-        cur.execute("SELECT DISTINCT cat FROM purchases WHERE userID=?", (client.userID,))
-        res=cur.fetchall()
-        for (cat,) in res:
-            cats.append(cat)
-            
+        cur=db.cursor()   
         cur.execute("SELECT DISTINCT loc FROM purchases WHERE userID=?", (client.userID,))
         res=cur.fetchall()
         for (loc,) in res:
@@ -413,7 +452,7 @@ def create_expense(): #function that 'creates' the right expense details before 
     else:
         values.append(inp)
     
-    for i in range(2):  #loop that iteratively stores data about location, category and description w/o rewriting code
+    for i in range(2):  #loop that iteratively stores data about location and category w/o rewriting code
         if len(lists[i])!=0:
             print "\n\t\t\t  %s:" % lists2[i].upper()
             for j in range(len(lists[i])):
@@ -541,6 +580,39 @@ def details():
 
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
     
+def sendMail(subject, message, attachs):
+    
+    msg = MIMEMultipart()
+    
+    msg['Subject'] = subject
+    msg['From'] = "Expense Tracker 9000XL <expense.trackerxl@gmail.com>"
+    msg['To'] = "%s <%s>" % (client.userName, client.email)
+    
+    msg.attach(MIMEText(message))
+    
+    for attach in attachs:
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(open(attach, 'rb').read())
+        Encoders.encode_base64(part)
+        part.add_header('Content-Disposition',
+                'attachment; filename="%s"' % basename(attach))
+        msg.attach(part)
+    
+    try:
+        server = smtplib.SMTP('smtp.gmail.com',587)
+        server.ehlo()  #Sends an extended hello to server
+        server.starttls() #starts ttls
+        server.ehlo()  # sends hello
+        server.login(sendEmail, sendPwd)  # FInd a way to store the password in a more secure way
+        print "\n\t\tSENDING REPORT TO %s..." % (client.email,)
+        server.sendmail(sendEmail, client.email, msg.as_string())
+        server.close()
+        print "\n\t\tSUCCESSFULLY SENT MAIL! PLEASE CHECK YOUR EMAIL!"
+    except smtplib.SMTPException:
+        print "\n\t\tUNABLE TO SEND MAIL! ENSURE INTERNET CONNECTION!"
+    
+#X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
+    
 def enter(): #menu for the user to do the following stuff
     print "\n\t\t\t\tWELCOME %s!" % client.userName
     details()
@@ -548,8 +620,10 @@ def enter(): #menu for the user to do the following stuff
     print "\n\t\t\t2 --> EDIT EXPENSE"
     print "\n\t\t\t3 --> DELETE EXPENSE"
     print "\n\t\t\t4 --> VIEW TRANSACTIONS"
-    print "\n\t\t\t5 --> EDIT ACCOUNT DETAILS"
-    print "\n\t\t\t6 --> DELETE ACCOUNT"
+    print "\n\t\t\t5 --> EMAIL MONTHLY REPORT"
+    print "\n\t\t\t6 --> EMAIL YEARLY REPORT"
+    print "\n\t\t\t7 --> EDIT ACCOUNT DETAILS"
+    print "\n\t\t\t8 --> DELETE ACCOUNT"
     print "\n\t\t\t0 --> LOGOUT"
 
     choice=raw_input("\n\tEnter your choice - ")
@@ -573,11 +647,11 @@ def enter(): #menu for the user to do the following stuff
     elif choice=='4':
         with sqlite3.connect(db_name) as db:
             cur=db.cursor()
-            cur.execute("SELECT purchaseID, desc, price, cat, loc, day||'-'||month||'-'||year from purchases WHERE userID=? ORDER BY year desc, month desc, day desc",(client.userID,))
+            cur.execute("SELECT desc, price, cat, loc, day||'-'||month||'-'||year from purchases WHERE userID=? ORDER BY year desc, month desc, day desc",(client.userID,))
             res=cur.fetchall()
             db.commit()
         if len(res)!=0:
-            print tabulate(res, ["PurchaseID","Description","Price","Category","Location","Date(DD-MM-YYYY)"], tablefmt='grid')
+            print tabulate(res, ["Description","Price","Category","Location","Date(DD-MM-YYYY)"], tablefmt='grid')
             today=localtime()
             month_stats(today[1],today[0])
             plt.show(block=False)
@@ -589,9 +663,72 @@ def enter(): #menu for the user to do the following stuff
         else:
             print "\n\t\tNO EXPENSES TO DISPLAY!"
             enter()
-        
-        
+
     elif choice=='5':
+        month=raw_input("\n\tEnter the month (1-12) - ")
+        year=raw_input("\n\tEnter the year - ")
+        if month.isdigit() and year.isdigit():
+            month=int(month)
+            year=int(year)
+            with sqlite3.connect(db_name) as db:
+                cur=db.cursor()
+                cur.execute("SELECT COUNT(*), SUM(price) FROM purchases WHERE userID=? AND year=? AND month=?",(client.userID,year,month))
+                res=cur.fetchone()
+            if res[0]==0:
+                print "\n\t\tNO EXPENSES INCURRED DURING THIS MONTH!"
+            else:
+                month_stats(month, year)
+                plt.savefig("%s_%s-%d.png" % (client.userName,months[month-1],year))
+                with sqlite3.connect(db_name) as db:
+                    cur=db.cursor()
+                    cur.execute("SELECT desc, price, cat, loc, day||'-'||month||'-'||year from purchases WHERE userID=? AND month=? AND year=? ORDER BY year desc, month desc, day desc",(client.userID, month, year))
+                    result=cur.fetchall()
+                fw=open("%s_%s-%d_Stats.txt" % (client.userName,months[month-1],year),"w")
+                fw.write("\t\t%s-%d EXPENSES\n" % (months[month-1], year))
+                fw.write(tabulate(result, ["Description","Price","Category","Location","Date(DD-MM-YYYY)"], tablefmt='grid'))
+                fw.close()
+                message="Dear %s,\nThis is your report for %s-%d.\n\n\t\tTOTAL EXPENSES INCURRED: %.2f rupees" % (client.userName, months[month-1], year, res[1])
+                sendMail('%s-%d Monthly Report' % (months[month-1],year), message, ["%s_%s-%d.png" % (client.userName,months[month-1],year), "%s_%s-%d_Stats.txt" % (client.userName,months[month-1],year)])
+                remove(basename("%s_%s-%d.png" % (client.userName,months[month-1],year)))
+                remove(basename("%s_%s-%d_Stats.txt" % (client.userName,months[month-1],year)))
+        else:
+            print "\n\tINVALID MONTH AND/OR YEAR"
+        enter()
+
+    elif choice=='6':
+        year=raw_input("\n\tEnter the year - ")
+        if year.isdigit():
+            year=int(year)
+            with sqlite3.connect(db_name) as db:
+                cur=db.cursor()
+                cur.execute("SELECT COUNT(*), SUM(price) FROM purchases WHERE userID=? AND year=?",(client.userID,year))
+                res=cur.fetchone()
+            if res[0]==0:
+                print "\n\t\tNO EXPENSES INCURRED DURING THIS YEAR"
+            else:
+                year_stats_all(year)
+                plt.savefig("%s_%d_All.png" % (client.userName,year))
+                year_stats_pies(year)
+                plt.savefig("%s_%d_Pies.png" % (client.userName,year))
+                with sqlite3.connect(db_name) as db:
+                    cur=db.cursor()
+                    cur.execute("SELECT desc, price, cat, loc, day||'-'||month||'-'||year from purchases WHERE userID=? AND year=? ORDER BY year desc, month desc, day desc",(client.userID, year))
+                    result=cur.fetchall()
+                fw=open("%s_%d_Stats.txt" % (client.userName,year),"w")
+                fw.write("\t\t%d EXPENSES\n" % (year,))
+                fw.write(tabulate(result, ["Description","Price","Category","Location","Date(DD-MM-YYYY)"], tablefmt='grid'))
+                fw.close()
+                message="Dear %s,\nThis is your report for %d.\n\n\t\tTOTAL EXPENSES INCURRED: %.2f rupees" % (client.userName, year, res[1])
+                sendMail('%d Yearly Report' % (year,), message, ["%s_%d_All.png" % (client.userName, year), "%s_%d_Pies.png" % (client.userName,year), "%s_%d_Stats.txt" % (client.userName,year)])
+                remove(basename("%s_%d_All.png" % (client.userName, year)))
+                remove(basename("%s_%d_Pies.png" % (client.userName,year)))
+                remove(basename("%s_%d_Stats.txt" % (client.userName,year)))
+                
+        else:
+            print "\n\tINVALID MONTH AND/OR YEAR"
+        enter()
+            
+    elif choice=='7':
         
         userNameInp=client.userName
         pwdInp=client.pwd
@@ -648,7 +785,7 @@ def enter(): #menu for the user to do the following stuff
         client.edit()
         enter()
 
-    elif choice=='6':
+    elif choice=='8':
         choice=raw_input("\n\tARE YOU SURE YOU WANT TO DELETE YOUR ACCOUNT? ALL DATA WILL BE DELETED! (Y/N) - ")
         if choice=='' or choice.lower()=='n' or choice.lower()=="no":
             print "\n\tACCOUNT NOT DELETED! RETURNING TO USER MENU..."
@@ -662,6 +799,7 @@ def enter(): #menu for the user to do the following stuff
             client.question=''
             client.ans=''
             client.budget=0.0
+            client.email=''
         begin()
 
     elif choice=='0':
@@ -672,6 +810,7 @@ def enter(): #menu for the user to do the following stuff
         client.question=''
         client.ans=''
         client.budget=0.0
+        client.email=''
         print "\n\t\tRETURNING TO START MENU..."
         begin()
 
@@ -682,48 +821,3 @@ def enter(): #menu for the user to do the following stuff
 begin()
                         
 #X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X
-        
-            
-            
-            
-        
-    
-        
-      
-        
-		
-		
-        
-        
-
-        
-                
-        
-                    
-        
-
-                
-    
-            
-        
-        
-    
-            
-            
-            
-            
-        
-            
-        
-    
-
-
-    
-    
-        
-        
-
-                
-            
-            
-        
