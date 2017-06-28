@@ -6,7 +6,7 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from os.path import basename
-from time import localtime
+from time import localtime, sleep
 
 server = "tcp:expense-tracker.database.windows.net"
 database = "Accounts"
@@ -19,6 +19,8 @@ cnxn = "DRIVER=" + driver + ";PORT=1433;SERVER=" + server + ";PORT=1443;DATABASE
 sendEmail = "expense.trackerxl@gmail.com"
 sendPwd = "extrack9000"
 
+months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
 
 ########################################################################################################################
 #                                       CLASS FOR USERS                                                                #
@@ -26,12 +28,14 @@ sendPwd = "extrack9000"
 
 
 class User(object):
-    def __init__(self, user_id=0, name="", pwd="", budget=0.0, email=""):
+    def __init__(self, user_id=0, name="", pwd="", budget=0.0, email="", cats=[], locs=[]):
         self.user_id = user_id
         self.name = name
         self.pwd = pwd
         self.budget = budget
         self.email = email
+        self.cats = cats
+        self.locs = locs
 
     def create(self):  # STORES USER'S DETAILS INTO DATABASE
         with pyodbc.connect(cnxn) as db:
@@ -206,6 +210,21 @@ class StartWin(Tk.Frame):
         self.reset()
         Tk.Frame.tkraise(self)
 
+def update_loc_cat():
+
+    with pyodbc.connect(cnxn) as db:
+        cur = db.cursor()
+        cur.execute("SELECT DISTINCT cat FROM purchases WHERE userID=?", (user.user_id,))
+        res_cat = cur.fetchall()
+        cur.execute("SELECT DISTINCT loc FROM purchases WHERE userID=?", (user.user_id,))
+        res_loc = cur.fetchall()
+    user.cats = []
+    user.locs = []
+    for (cat,) in res_cat:
+        user.cats.append(cat)
+    for (loc,) in res_loc:
+        user.locs.append(loc)
+
 ########################################################################################################################
 #                                       CLASS INTERFACE FOR LOGIN WINDOW                                               #
 ########################################################################################################################
@@ -314,6 +333,9 @@ class LoginWin(Tk.Frame):
         self.showLabel.bind("<Motion>", lambda x: self.pwdEntry.configure(show=""))
         self.showLabel.bind("<Leave>", lambda x: self.pwdEntry.configure(show="*"))
 
+        # self.master.bind_class("Text", "<Control-a>", self.selectall)
+        # self.userEntry.bind("<Control-A>", self.selectall())
+
         ##########################
         # SETTING UP THE LAYOUT  #
         ##########################
@@ -344,6 +366,10 @@ class LoginWin(Tk.Frame):
     ####################
     #  CLASS METHODS   #
     ####################
+
+    # def selectall(self):
+    #    self.userEntry.select_range(0, Tk.END)
+    #    return "break"
 
     def reset(self):
 
@@ -376,6 +402,7 @@ class LoginWin(Tk.Frame):
             self.submitBn.configure(state=Tk.NORMAL, fg="#f4d03f", bg="#424949", relief=Tk.RAISED, text="Send Password")
 
     def login(self):
+
         name = self.userEntry.get()
         pwd = self.pwdEntry.get()
 
@@ -395,9 +422,11 @@ class LoginWin(Tk.Frame):
             user.budget = res[3]
             user.email = res[4]
 
-            if self.remVar == 1:
+            update_loc_cat()
+
+            if self.remVar.get() == 1:
                 file_obj = open("remember_me.txt", "w")
-                file_obj.write(user.user_id)
+                file_obj.write(str(user.user_id))
                 file_obj.close()
 
             userWin.reset()
@@ -407,7 +436,7 @@ class LoginWin(Tk.Frame):
 
         with pyodbc.connect(cnxn) as db:
             cur = db.cursor()
-            cur.execute("SELECT userName, pwd FROM users WHERE email=?", (forgotEntry.get(),))
+            cur.execute("SELECT userName, pwd FROM users WHERE email=?", (self.forgotEntry.get(),))
             res = cur.fetchone()
 
         if res is None:
@@ -418,8 +447,7 @@ class LoginWin(Tk.Frame):
                       "Below is your password; please store it carefully for future reference</p>" \
                       "<h1><b>%s</b></h1>" % (res[0], res[1])
             subject = "Forgot Password"
-            statBar.configure(bg="green", relief=Tk.SUNKEN, text="SENDING MAIL...")
-            if send_mail(subject, message, [], res[0], forgotEntry.get()):
+            if send_mail(subject, message, [], res[0], self.forgotEntry.get()):
                 statBar.configure(bg="black", relief=Tk.SUNKEN, text="MAIL SUCCESSFULLY SENT!")
             else:
                 statBar.bell()
@@ -518,25 +546,25 @@ class SignupWin(Tk.Frame):
 
         for row in range(17):
             self.rowconfigure(row, weight=1)
-        for col in range(6):
+        for col in range(10):
             self.columnconfigure(col, weight=1)
 
         #########################
         # DISPLAYING ON WINDOW  #
         #########################
 
-        self.label.grid(row=1, column=1, columnspan=4, sticky="news")
-        self.unameLabel.grid(row=4, column=1, sticky="news")
-        self.email_label.grid(row=6, column=1, sticky="news")
-        self.plabel.grid(row=8, column=1, sticky="news")
-        self.plabelConf.grid(row=10, column=1, sticky="news")
-        self.signupBn.grid(row=13, column=2, sticky="news")
-        self.backBn.grid(row=15, column=4, sticky="news")
-        self.enterUname.grid(row=4, column=3, columnspan=2, sticky="news")
-        self.enterEmail.grid(row=6, column=3, columnspan=2, sticky="news")
-        self.enterpass.grid(row=8, column=3, sticky="news")
-        self.enterpass2.grid(row=10, column=3, columnspan=2, sticky="news")
-        self.showLabel.grid(row=8, column=4, sticky="news")
+        self.label.grid(row=1, column=3, columnspan=4, sticky="news")
+        self.unameLabel.grid(row=4, column=3, sticky="news")
+        self.email_label.grid(row=6, column=3, sticky="news")
+        self.plabel.grid(row=8, column=3, sticky="news")
+        self.plabelConf.grid(row=10, column=3, sticky="news")
+        self.signupBn.grid(row=13, column=4, sticky="news")
+        self.backBn.grid(row=15, column=6, sticky="news")
+        self.enterUname.grid(row=4, column=5, columnspan=2, sticky="news")
+        self.enterEmail.grid(row=6, column=5, columnspan=2, sticky="news")
+        self.enterpass.grid(row=8, column=5, sticky="news")
+        self.enterpass2.grid(row=10, column=5, columnspan=2, sticky="news")
+        self.showLabel.grid(row=8, column=6, sticky="news")
 
         ####  COPYING JOSH IS FUN ####
         ####     CLASS METHODS    ####
@@ -660,44 +688,44 @@ class UserWin(Tk.Frame):
 
         self.master.title("USER HOME")
 
-        self.wLabel = Tk.Label(text="WELCOME, {0}!".format(user.name),
+        self.wLabel = Tk.Label(self, text="WELCOME, {0}!".format(user.name),
                                anchor=Tk.CENTER,
                                font=('Britannic Bold', 35),
                                fg="#f4d03f", bg="#21618c"
                                )
 
-        self.pwdLabel = Tk.Label(text="Password\n{0}".format(user.pwd),
+        self.pwdLabel = Tk.Label(self, text="Password:\n{0}".format(user.pwd),
                                  anchor=Tk.W,
                                  justify=Tk.LEFT,
-                                 font=('Trebuchet', 18),
-                                 fg="#f4d03f", bg="#21618c"
+                                 font=('Trebuchet', 18, "bold"),
+                                 fg="#f4d03f", bg="#21618c",
                                  )
 
-        self.emailLabel = Tk.Label(text="Correspondence Email\n{0}".format(user.email),
+        self.emailLabel = Tk.Label(self, text="Correspondence Email:\n{0}".format(user.email),
                                    anchor=Tk.W,
                                    justify=Tk.LEFT,
-                                   font=('Trebuchet', 18),
+                                   font=('Trebuchet', 18, "bold"),
                                    fg="#f4d03f", bg="#21618c"
                                    )
 
-        self.monthLabel = Tk.Label(text="Monthly Expenses\n{0}".format(self.month_expenses()),
+        self.monthLabel = Tk.Label(self, text="Monthly Expenses:\n{0}".format(self.month_expenses()),
                                    anchor=Tk.W,
                                    justify=Tk.LEFT,
-                                   font=('Trebuchet', 18),
+                                   font=('Trebuchet', 18, "bold"),
                                    fg="#f4d03f", bg="#21618c"
                                    )
 
-        self.yearLabel = Tk.Label(text="Yearly Expenses\n{0}".format(self.year_expenses()),
+        self.yearLabel = Tk.Label(self, text="Yearly Expenses:\n{0}".format(self.year_expenses()),
                                   anchor=Tk.W,
                                   justify=Tk.LEFT,
-                                  font=('Trebuchet', 18),
+                                  font=('Trebuchet', 18, "bold"),
                                   fg="#f4d03f", bg="#21618c"
                                   )
 
-        self.budgetLabel = Tk.Label(text="Monthly Budget\n{0}".format(user.budget),
+        self.budgetLabel = Tk.Label(self, text="Monthly Budget:\n{0}".format(user.budget),
                                     anchor=Tk.W,
                                     justify=Tk.LEFT,
-                                    font=('Trebuchet', 18),
+                                    font=('Trebuchet', 18, "bold"),
                                     fg="#f4d03f", bg="#21618c"
                                     )
 
@@ -707,19 +735,19 @@ class UserWin(Tk.Frame):
 
         for row in range(10):
             self.rowconfigure(row, weight=1)
-        for col in range(5):
+        for col in range(6):
             self.columnconfigure(col, weight=1)
 
         #########################
         # DISPLAYING ON WINDOW  #
         #########################
 
-        self.wLabel.grid(row=1, column=1, columnspan=3, sticky="news")
-        self.pwdLabel.grid(row=4, column=1, sticky="news")
-        self.emailLabel.grid(row=6, column=1, sticky="news")
-        self.monthLabel.grid(row=4, column=3, sticky="news")
-        self.yearLabel.grid(row=6, column=3, sticky="news")
-        self.budgetLabel.grid(row=8, column=3, sticky="news")
+        self.wLabel.grid(row=1, column=1, columnspan=4, sticky="news")
+        self.pwdLabel.grid(row=3, column=2, sticky="news")
+        self.emailLabel.grid(row=5, column=2, sticky="news")
+        self.monthLabel.grid(row=3, column=4, sticky="news")
+        self.yearLabel.grid(row=5, column=4, sticky="news")
+        self.budgetLabel.grid(row=7, column=4, sticky="news")
 
     ####################
     #  CLASS METHODS   #
@@ -778,10 +806,136 @@ class UserWin(Tk.Frame):
         self.master.config(menu="")
         startWin.tkraise()
 
+########################################################################################################################
+#                                       CLASS INTERFACE FOR USER WINDOW                                                #
+########################################################################################################################
+
+class ExpenseWin(Tk.Frame):
+
+    def __init__(self, master):
+
+        Tk.Frame.__init__(self, master)
+
+        #################################
+        # WIDGETS FOR THE EXPENSE TABLE #
+        #################################
+
+        self.canvas = Tk.Canvas(self, bg="#21618c")
+        self.inFrame = Tk.Frame(self.canvas, bg="#21618c")
+        self.vsb = Tk.Scrollbar(self, orient=Tk.VERTICAL, command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.vsb.set)
+
+        #######################
+        # REST OF THE WIDGETS #
+        #######################
+
+        self.filterBn = Tk.Button(self,
+                                  text="Filter Results",
+                                  font=('Calibri', 18),
+                                  fg="#f4d03f", bg="#424949",
+                                  activebackground="#797d7f",
+                                  command=self.filter_results)
+
+        self.addBn = Tk.Button(self,
+                               text="Add Expense",
+                               font=('Calibri', 18),
+                               fg="#f4d03f", bg="#424949",
+                               activebackground="#797d7f",
+                               command=lambda: addWin.tkraise())
+
+        self.delBn = Tk.Button(self,
+                               text="Delete Expense",
+                               font=('Calibri', 18),
+                               fg="#f4d03f", bg="#424949",
+                               activebackground="#797d7f",
+                               command=self.delete)
+
+        self.editBn = Tk.Button(self,
+                                text="Edit Expense",
+                                font=('Calibri', 18),
+                                fg="#f4d03f", bg="#424949",
+                                activebackground="#797d7f",
+                                command=editWin.tkraise)
+
+        self.descEntry = Tk.Entry(self,
+                                  font=('Calibri', 18),
+                                  fg="#000000",
+                                  justify=Tk.LEFT,
+                                  relief=Tk.SUNKEN,
+                                  bd=3)
+
+        self.locEntry = Tk.Entry(self,
+                                 font=('Calibri', 18),
+                                 fg="#000000",
+                                 justify=Tk.LEFT,
+                                 relief=Tk.SUNKEN,
+                                 bd=3)
+        self.locBn = Tk.Menubutton(self,
+                                   text="V",
+                                   font=('Calibri', 18, "bold"),
+                                   relief=Tk.RAISED)
+        self.locMenu = Tk.Menu(self.locBn, tearoff=0)
+        for loc in user.locs:
+            self.locMenu.add_command(label=loc,
+                                     command=lambda: self.locEntry.configure(text=loc))
+
+        self.catEntry = Tk.Entry(self,
+                                 font=('Calibri', 18),
+                                 fg="#000000",
+                                 justify=Tk.LEFT,
+                                 relief=Tk.SUNKEN,
+                                 bd=3)
+        self.catBn = Tk.Menubutton(self,
+                                   text="V",
+                                   font=('Calibri', 18, "bold"),
+                                   relief=Tk.RAISED)
+        self.catMenu = Tk.Menu(self.catBn, tearoff=0)
+        for cat in user.cats:
+            self.catMenu.add_command(label=cat,
+                                     command=lambda: self.catEntry.configure(text=cat))
+
+        self.priceEntry = Tk.Entry(self,
+                                   font=('Calibri', 18),
+                                   fg="#000000",
+                                   justify=Tk.LEFT,
+                                   relief=Tk.SUNKEN,
+                                   bd=3)
+
+        self.dayEntry = Tk.Entry(self,
+                                 font=('Calibri', 18),
+                                 fg="#000000",
+                                 justify=Tk.LEFT,
+                                 relief=Tk.SUNKEN,
+                                 bd=3)
+
+        self.monthBn = Tk.Menubutton(self,
+                                     text="Month",
+                                     font=('Calibri', 18),
+                                     relief=Tk.RAISED)
+
+        self.monthMenu = Tk.Menu(self.monthBn, tearoff=0)
+        for i in range(12):
+            self.monthMenu.add_command(label="{0} - {1}".format(i+1, months[i]),
+                                       command=lambda: self.monthBn.configure(text="{0} - {1}".format(i+1, months[i])))
+
+        self.yearEntry = Tk.Entry(self,
+                                  font=('Calibri', 18),
+                                  fg="#000000",
+                                  justify=Tk.LEFT,
+                                  relief=Tk.SUNKEN,
+                                  bd=3)
+
+
+
+
+
+
+
+
 
 root = Tk.Tk()
-#root.state('zoomed')
-#root.iconbitmap(default=r"C:\Users\James\Downloads\1497972677_Money.ico")  # CHANGE THIS ON YOUR LAPTOP
+root.state('zoomed')
+root.iconbitmap(default=r"C:\Users\James\Downloads\1497972677_Money.ico")  # CHANGE THIS ON YOUR LAPTOP
 root.rowconfigure(0, weight=1)
 root.columnconfigure(0, weight=1)
 statBar = Tk.Label(root,
@@ -804,5 +958,20 @@ menuBar.add_command(label="Expenses", command=loginWin.tkraise) # FOR NOW IT'S L
 menuBar.add_command(label="Account", command=loginWin.tkraise)
 menuBar.add_command(label="Email Report", command=userWin.tkraise)
 menuBar.add_command(label="Logout", command=userWin.leave)
-startWin.tkraise()
+
+try:
+    file_obj = open("remember_me.txt", "r")
+    with pyodbc.connect(cnxn) as db:
+        cur = db.cursor()
+        cur.execute("SELECT * FROM users WHERE userID=?",(int(file_obj.read()),))
+        res = cur.fetchone()
+    user.user_id = res[0]
+    user.name = res[1]
+    user.pwd = res[2]
+    user.budget = res[3]
+    user.email = res[4]
+    userWin.tkraise()
+except:
+    startWin.tkraise()
+
 root.mainloop()
