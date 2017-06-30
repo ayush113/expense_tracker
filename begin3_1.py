@@ -708,7 +708,6 @@ class SignupWin(Tk.Frame):
     def validate_email(self,userName,email):  #validates the email address by sending a verification code
 
         randNo=randint(10000,99999)
-        print "\n\tSENDING VERIFICATION EMAIL. ENSURE INTERNET CONNECTION AND CHECK YOUR MAIL!"
         message = "From: Expense Tracker 9000XL <expense.trackerxl@gmail.com>\nTo: %s <%s>\nMIME-Version: 1.0\nContent-type: text/html\nSubject: Email Verification\n<p>Dear %s,</p><p>\nBelow is the verification code for completion of registration on Expense Tracker 9000XL.</p><p>\nEnter the code in the program to complete registration.\n</p><h1><b>%d</b></h1>" % (userName, email, userName, randNo)
         try:
             smtpObj=smtplib.SMTP("smtp.gmail.com",587)
